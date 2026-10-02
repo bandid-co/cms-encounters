@@ -1,0 +1,106 @@
+<mxfile host="app.diagrams.net" modified="2026-10-02" agent="claude" version="24.0.0">
+  <diagram name="1 - Correction Decision Flow" id="decisionFlow">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="start" value="&lt;b&gt;Correction identified&lt;/b&gt;&lt;br&gt;on an accepted encounter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F0EC;strokeColor=#8A8577;fontColor=#2B2B2B;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="420" y="40" width="320" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gate1" value="&lt;b&gt;Gate 1&lt;/b&gt; — Is the latest version EDPS-Accepted&lt;br&gt;with its ICN on file?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F0EC;strokeColor=#8A8577;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="150" width="380" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="hold" value="&lt;b&gt;HOLD&lt;/b&gt;&lt;br&gt;Wait for MAO-002&lt;br&gt;(prevents edit 00265)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D9;strokeColor=#B8860B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="860" y="150" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gate2" value="&lt;b&gt;Gate 2&lt;/b&gt; — Is another adjustment already&lt;br&gt;in flight on this encounter chain?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F0EC;strokeColor=#8A8577;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="390" y="280" width="380" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="queue" value="&lt;b&gt;QUEUE&lt;/b&gt;&lt;br&gt;One adjustment per ICN&lt;br&gt;(prevents 00760 / 00755)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D9;strokeColor=#B8860B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="860" y="280" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="decision" value="&lt;b&gt;DECISION&lt;/b&gt; — Does the correction change any key matching field?&lt;br&gt;(beneficiary name, Place of Service / Type of Bill, or Billing Provider NPI&lt;br&gt;— beneficiary identifier HICN/MBI is exempt)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDEBFE;strokeColor=#5B4CC4;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="410" width="520" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="repl" value="&lt;b&gt;REPLACEMENT   (CLM05-3 = 7)&lt;/b&gt;&lt;br&gt;&lt;br&gt;REF01 = &#39;F8&#39;    REF02 = latest accepted ICN&lt;br&gt;7 key fields copied from accepted snapshot&lt;br&gt;All other content from the correction&lt;br&gt;(DOS, charges, lines, diagnoses may change)&lt;br&gt;Must not duplicate another accepted EDR&lt;br&gt;Key mismatch &#8594; edit 00780" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5EE;strokeColor=#0F7B6C;fontColor=#2B2B2B;fontSize=12;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="590" width="430" height="190" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="void" value="&lt;b&gt;VOID   (CLM05-3 = 8)&lt;/b&gt;&lt;br&gt;&lt;br&gt;REF01 = &#39;F8&#39;    REF02 = latest accepted ICN&lt;br&gt;Exact echo of accepted record — all 11 key fields,&lt;br&gt;all original lines included&lt;br&gt;Key mismatch &#8594; edit 00699" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECE8;strokeColor=#C4432B;fontColor=#2B2B2B;fontSize=12;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="560" width="440" height="140" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="neworig" value="&lt;b&gt;NEW ORIGINAL   (CLM05-3 = 1)&lt;/b&gt;&lt;br&gt;No REF*F8 — starts a new encounter chain, corrected data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECE8;strokeColor=#C4432B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="650" y="760" width="440" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="start" target="gate1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;fontColor=#6E6A5C;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="gate1" target="gate2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B8860B;strokeWidth=1.5;fontColor=#B8860B;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="gate1" target="hold"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;fontColor=#6E6A5C;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="gate2" target="decision"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B8860B;strokeWidth=1.5;fontColor=#B8860B;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="gate2" target="queue"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="NO — replace" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0F7B6C;strokeWidth=1.5;fontColor=#0F7B6C;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="decision" target="repl"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="YES — void + new" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C4432B;strokeWidth=1.5;fontColor=#C4432B;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="decision" target="void"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="after void is accepted" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C4432B;strokeWidth=1.5;fontColor=#C4432B;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="void" target="neworig"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="2 - Encounter Lifecycle States" id="stateMachine">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="note" value="Each submission attempt moves through these states. Corrections are permitted only from EDPS ACCEPTED." style="text;html=1;align=center;fontStyle=2;fontSize=12;fontColor=#4A4638;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="760" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gen" value="&lt;b&gt;GENERATED&lt;/b&gt;&lt;br&gt;File built and&lt;br&gt;passed rule pack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F0EC;strokeColor=#8A8577;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="trans" value="&lt;b&gt;TRANSMITTED&lt;/b&gt;&lt;br&gt;Sent via SFTP&lt;br&gt;(pass-through)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F0EC;strokeColor=#8A8577;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="80" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe" value="&lt;b&gt;FRONT-END ACKED&lt;/b&gt;&lt;br&gt;TA1 + 999 clean" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDEBFE;strokeColor=#5B4CC4;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="540" y="80" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="ca" value="&lt;b&gt;277CA ACCEPTED&lt;/b&gt;&lt;br&gt;Claim-level accept&lt;br&gt;at EDFES" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDEBFE;strokeColor=#5B4CC4;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="790" y="80" width="190" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="edps" value="&lt;b&gt;EDPS ACCEPTED&lt;/b&gt;&lt;br&gt;MAO-002 header 000 Accepted&lt;br&gt;ICN assigned, snapshot captured" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5EE;strokeColor=#0F7B6C;fontColor=#2B2B2B;fontSize=12;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="780" y="280" width="210" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="rej" value="&lt;b&gt;REJECTED&lt;/b&gt;&lt;br&gt;TA1 / 999 / 277CA&lt;br&gt;or MAO-002 reject" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECE8;strokeColor=#C4432B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="285" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="corr" value="&lt;b&gt;CORRECT&lt;/b&gt;&lt;br&gt;New attempt row —&lt;br&gt;nothing overwritten" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D9;strokeColor=#B8860B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="285" width="190" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sup" value="&lt;b&gt;SUPERSEDED (adjusted)&lt;/b&gt;&lt;br&gt;A replacement of this&lt;br&gt;version was accepted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDEBFE;strokeColor=#5B4CC4;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="500" width="220" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="vd" value="&lt;b&gt;VOIDED (inactive)&lt;/b&gt;&lt;br&gt;A void of this&lt;br&gt;version was accepted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECE8;strokeColor=#C4432B;fontColor=#2B2B2B;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="900" y="500" width="220" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="gen" target="trans"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="trans" target="fe"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="fe" target="ca"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="ca" target="edps"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s5" value="reject at any stage" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C4432B;strokeWidth=1.5;fontColor=#C4432B;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="fe" target="rej"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;" edge="1" parent="1" source="rej" target="corr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s7" value="resubmit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6E6A5C;strokeWidth=1.5;fontColor=#6E6A5C;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="corr" target="gen"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s8" value="accepted replacement&#10;(new version gets new ICN)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#5B4CC4;strokeWidth=1.5;fontColor=#5B4CC4;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="edps" target="sup"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="s9" value="accepted void&#10;(chain closed)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C4432B;strokeWidth=1.5;fontColor=#C4432B;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="edps" target="vd"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
