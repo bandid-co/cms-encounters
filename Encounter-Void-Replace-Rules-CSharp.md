@@ -1,7 +1,7 @@
 # Encounter Void and Replacement Rules — Design Guide for C# Implementation
 
-**Purpose:** correct implementation of EDR/CRR corrections (replace and void) in the 837 renderer, designed to prevent MAO-002 edits **00265, 00755, 00760, 00780** and EDFES edit **A8:746:40**.
-**Sources:** CMS job aid *Avoiding Common Encounter Data System Edits* (authoritative for the match-key lists below); Encounter Data Submission and Processing Guide Ch. 2 (§2.3.3–2.3.4); CMS Risk Adjustment webinar Q&A (CSSC).
+**Purpose:** correct implementation of EDR/CRR corrections (replace and void) in the 837 renderer, designed to prevent MAO-002 edits **00265, 00699, 00755, 00760, 00780** and EDFES edit **A8:746:40**.
+**Sources:** CMS guide *Voiding and Replacing Encounter Data Records* (authoritative for mechanics, the two mismatch edits, and the decision rule); CMS job aid *Avoiding Common Encounter Data System Edits*; Encounter Data Submission and Processing Guide Ch. 2 (§2.3.3–2.3.4); CMS Risk Adjustment webinar Q&A (CSSC).
 
 ---
 
@@ -17,7 +17,8 @@ Mechanics (Loop 2300): `CLM05-3 = '7'` or `'8'`, plus `REF01 = 'F8'`, `REF02 = <
 
 Semantics that drive the code:
 
-- **Replacement is full replacement, not a delta** — a complete encounter record.
+- **Replacement is full replacement, not a delta** — a complete encounter record. On acceptance, CMS sets the prior record to *adjusted*. **Replacements are subject to duplicate-logic checks** — a replacement duplicating another previously accepted EDR rejects.
+- **Void must carry all originally submitted lines.** On acceptance, the prior EDR — header and lines — is set to void/off (inactive). A void accepted at the header level voids the entire prior EDR even if some void lines reject. **Voids are exempt from duplicate-logic checks**, and a void affects only the record its ICN points to.
 - **Only accepted encounters can be adjusted** — the REF*F8 ICN must exist in EDPS (target appeared Accepted on an MAO-002).
 - **An ICN can be voided or replaced exactly once.** After an accepted replacement, further adjustments target the *new* ICN. After a void, the chain is closed — a corrected resubmission is a brand-new Original with no ICN linkage.
 
@@ -40,9 +41,14 @@ Void        (8, F8=ICN-A) ✘  → 00760/00755 (already adjusted)
 
 ## 3. The match-key rules (per the CMS job aid — the authoritative lists)
 
-### 3.1 Edit 00780 — "Adjustment must match original"
+### 3.1 Two mismatch edits, one mechanism
 
-EDPS matches the inbound adjustment against the stored accepted record on defined **header-level key fields**. Any mismatch → 00780 → adjustment rejected → the old record stays in force. CMS's observed top causes: **claim type / type of bill (e.g., DME 4700 vs Professional 4800), billing NPI, beneficiary first/last name.**
+EDPS matches the inbound correction against the stored accepted record on defined **header-level key fields**. Any mismatch → rejection → the old record stays in force:
+
+- **Replacement mismatch → edit 00780** — "Adjustment Must Match Original" (7 fields)
+- **Void mismatch → edit 00699** — "Void Must Match Original" (11 fields)
+
+CMS's observed top causes: **claim type / type of bill (e.g., DME 4700 vs Professional 4800), billing NPI, beneficiary first/last name.**
 
 ### 3.2 The two lists — and the asymmetry that matters
 
@@ -72,21 +78,22 @@ EDPS matches the inbound adjustment against the stored accepted record on define
 - A **void** must be a faithful echo of the accepted record — charges, DOS, line count, rendering NPI included. Render it entirely from the accepted snapshot.
 - A **replacement** is checked only on the 7. Therefore **DOS, charges, line count, rendering NPI, diagnoses, and all line content are correctable via replacement.** Only the 7 are immutable through the replacement path.
 
-### 3.3 The decision rule
+### 3.3 The decision rule (per CMS's written instruction)
 
-The planner's "is this change replaceable?" test keys on the **replacement 7**, with two relaxations from the footnotes:
+CMS states it directly: *if one of the key fields other than the HICN/MBI for the same beneficiary is different from the original record, MAOs should void the originally accepted record and re-submit as an original record.*
 
-- Beneficiary identifier changes (HICN→MBI, corrected MBI) — **never** a reason to void; EDS accepts either.
-- Beneficiary name corrections — usually tolerated via CMS's name-history matching; treat as replaceable, with a monitoring note (if 00780 still fires on a name, the submitted name isn't in CMS's history for that beneficiary — escalate as a data issue, not a code path).
-
-Which leaves the **effective immutable set: Place of Service / Type of Bill, and Billing Provider NPI** (Payer ID being envelope-derived, and ICN being the reference itself).
+So the planner's immutable set is **every replacement key except the beneficiary identifier** — in practice the decisional fields are **beneficiary name fields, Place of Service / Type of Bill, and Billing Provider NPI** (Payer ID is envelope-derived; the ICN is the reference itself):
 
 ```
-Correction touches POS/TOB or Billing Provider NPI?
+Correction touches a name field, POS/TOB, or Billing Provider NPI?
   ├─ NO  → Replacement (7): the 7 keys from snapshot, payload corrected
   └─ YES → Void (8): full echo of accepted snapshot (all 11 fields)
            then Original (1): corrected data, NEW chain, no REF*F8
 ```
+
+Nuance, not rule: the job aid notes name fields are validated against CMS's beneficiary name history as of DOS (since 2021-02-19), so some name corrections would in practice pass a replacement. The implemented rule follows CMS's written instruction above; any 00780/00699 received on a name is escalated as a beneficiary-data issue.
+
+For **diagnosis-only changes**, CMS names three sanctioned options: (1) void + new original, (2) replacement, or (3) a CRR adding/deleting the diagnosis codes — often the lightest-weight path.
 
 ### 3.4 The As-Accepted Snapshot — still the architectural cure
 
@@ -192,9 +199,10 @@ public sealed record AcceptedSnapshot(
 public sealed class AdjustmentPlanner : IAdjustmentPlanner
 {
     private static readonly ImmutableSet ReplacementImmutableKeys =
-        [ Key.PlaceOfServiceOrTypeOfBill, Key.BillingProviderNpi ];
-        // Bene identifier: exempt (either HICN/MBI accepted)
-        // Bene names: name-history matched — replaceable; monitor for 00780
+        [ Key.BeneficiaryLastName5, Key.BeneficiaryFirstInitial,
+          Key.PlaceOfServiceOrTypeOfBill, Key.BillingProviderNpi ];
+        // Per CMS: any key field change other than the beneficiary identifier → void + new original
+        // Bene identifier: exempt (either HICN/MBI accepted, need not match)
         // Payer ID: envelope-level; DOS/charges/lines: NOT keys for replacement
 
     public AdjustmentPlan Plan(EncounterChain chain, CorrectionRequest correction)
@@ -226,8 +234,9 @@ Renderer contract:
 ```
 □ No two records in this file share a REF*F8 ICN            (00760/00755)
 □ Every REF*F8 ICN is EdpsAccepted and unconsumed            (00265/00760/00755)
-□ Every void's 11 fields byte-match its snapshot             (00780)
+□ Every void's 11 fields byte-match its snapshot             (00699)
 □ Every replacement's 7 keys match its snapshot              (00780)
+□ Replacement content is not a duplicate of any accepted EDR (duplicate logic)
 □ ISA13 / GS06 / ST02 / BHT03 unique vs. submission history  (A8:746:40)
 □ No DTP03 later than submission date                        (A7:510/187)
 □ Dx and HCPCS valid on DOS                                  (A7:255/507)
@@ -243,7 +252,9 @@ On acceptance: store ICN, set `EdpsAccepted`, **capture the full AcceptedSnapsho
 
 | Edit | Official meaning | Prevention here |
 |---|---|---|
-| **00780** | Adjustment must match original | Snapshot-rendered keys (§3.4); planner immutable-key rule (§3.3); void = full echo of all 11 |
+| **00780** | Adjustment Must Match Original (replacement, 7 fields) | Snapshot-rendered keys (§3.4); planner immutable-key rule (§3.3) |
+| **00699** | Void Must Match Original (void, 11 fields) | Void rendered as full echo of snapshot incl. all original lines |
+| *(dup logic)* | Replacement duplicates an accepted EDR | Pre-transmission duplicate check vs. accepted store |
 | **00265** | Correct/Replace or Void ICN not in EDPS | Eligibility guard: target `EdpsAccepted` + ICN stored |
 | **00760** | Adjusted encounter already void/adjusted | Chain-head lookup; once-only; single in-flight; within-file REF*F8 dedup |
 | **00755** | Void encounter already void/adjusted | Same |
@@ -257,7 +268,7 @@ On acceptance: store ICN, set `EdpsAccepted`, **capture the full AcceptedSnapsho
 1. Replacement with corrected line quantity → 7 keys byte-match snapshot; lines from correction.
 2. **Replacement with corrected DOS or submitted charges → planner yields Replacement, not Void** (DOS/charges are not replacement keys).
 3. Live billing NPI mutated after acceptance; replacement rendered → still carries snapshot NPI.
-4. Correction changing Billing NPI or POS/TOB → planner yields Void + new Original; the Original carries no REF*F8.
+4. Correction changing Billing NPI, POS/TOB, **or a beneficiary name field** → planner yields Void + new Original; the Original carries no REF*F8.
 5. Void rendered → all 11 fields, including **line count counting rejected lines**, match snapshot.
 6. Beneficiary MBI updated after acceptance → replacement proceeds with current MBI; no void triggered.
 7. Adjustment requested while target is `Transmitted` → queued/blocked (00265 guard).
@@ -271,7 +282,7 @@ On acceptance: store ICN, set `EdpsAccepted`, **capture the full AcceptedSnapsho
 
 ## 10. Remaining Phase 0 verifications
 
-- ~~Exact match-key lists~~ — **closed** by the CMS job aid (7 for replacement, 11 for void, with the identifier and name-history exemptions).
+- ~~Exact match-key lists and decision rule~~ — **closed** by the CMS guide *Voiding and Replacing Encounter Data Records* and the job aid (7 for replacement → 00780; 11 for void → 00699; identifier exempt; any other key change → void + new original per CMS).
 - Whether Void + new Original may travel in the same file or must sequence across MAO-002 cycles (conservative default: sequence).
 - Whether Optum's intake in pass-through mode adds any adjustment-sequencing behavior of its own.
 - Confirm the job aid's version is current against the CSSC site at build time (name-history matching and identifier flexibility both carry effective dates).
